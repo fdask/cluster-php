@@ -161,7 +161,7 @@ class Cluster {
             }
         } while (is_null($fuzzy));
 
-        $possibleMoves = array("NOWHERE");
+        $possibleMoves = array(Fuzzy::$moveNowhere);
 
         // check for available moves
         if ($col == 0) {
@@ -171,7 +171,7 @@ class Cluster {
         }
 
         if (count($this->topSlots[$leftCol]) < $this->slotLimit) {
-            $possibleMoves[] = "LEFT";
+            $possibleMoves[] = Fuzzy::$moveLeft;
         }
 
         // right
@@ -182,18 +182,18 @@ class Cluster {
         }
 				
         if (count($this->topSlots[$rightCol]) < $this->slotLimit) {
-            $possibleMoves[] = "RIGHT";
+            $possibleMoves[] = Fuzzy::$moveRight;
         }
 
         // switch from top to bottom
         if (count($this->bottomSlots[$col]) < $this->slotLimit) {
-            $possibleMoves[] = "SWITCH";
+            $possibleMoves[] = Fuzzy::$moveSwitch;
         }
 
         $move = $fuzzy->getMove($possibleMoves);
 
         switch ($move) {
-            case 'LEFT':
+            case Fuzzy::$moveLeft:
                 if ($top) {
                     $this->topSlots[$leftCol][] = $fuzzy;
                     $this->topSlots[$col] = Config::removeIndex($this->topSlots[$col], $stack);
@@ -203,7 +203,7 @@ class Cluster {
                 }
 
                 break;
-            case 'RIGHT':
+            case Fuzzy::$moveRight:
                 if ($top) {
                     $this->topSlots[$rightCol][] = $fuzzy;
                     $this->topSlots[$col] = Config::removeIndex($this->topSlots[$col], $stack);
@@ -213,7 +213,7 @@ class Cluster {
                 }
 
                 break;
-            case 'SWITCH':
+            case Fuzzy::$moveSwitch:
                 if ($top) {
                     $this->bottomSlots[$col][] = $fuzzy;
                     $this->topSlots[$col] = Config::removeIndex($this->topSlots[$col], $stack);
@@ -223,7 +223,7 @@ class Cluster {
                 }
 
                 break;
-            case 'NOWHERE':
+            case Fuzzy::$moveNowhere:
                 // do nothing
 
                 break;

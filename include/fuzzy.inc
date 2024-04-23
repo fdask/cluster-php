@@ -6,6 +6,11 @@ class Fuzzy {
 	private $goNowhere;
 	private $goSwitch;
 
+    public static $moveLeft = "LEFT";
+    public static $moveRight = "RIGHT";
+    public static $moveNowhere = "NOWHERE";
+    public static $moveSwitch = "SWITCH";
+
 	public function __construct() {
 		$pts = 100;
 
@@ -31,16 +36,16 @@ class Fuzzy {
             // 0 > gl > gl + gr > gl + gr + gn > 100 - (gl + gn + gr)
             if ($i < $gl ) {
                 // left
-                $move = "LEFT";
+                $move = Fuzzy::$moveLeft;
             } else if ($i >= $gl && $i < ($gl + $gr)) {
                 // go right
-                $move = "RIGHT";
+                $move = Fuzzy::$moveRight;
             } else if ($i >= ($gl + $gr) && $i < ($gl + $gr + $gn)) {
                 // go nowhere
-                $move = "NOWHERE";
+                $move = Fuzzy::$moveNowhere;
             } else if ($i >= ($gl + $gr + $gn)) {
                 // go switch
-                $move = "SWITCH";
+                $move = Fuzzy::$moveSwitch;
             }
         } while (!in_array($move, $possibleMoves));
 
