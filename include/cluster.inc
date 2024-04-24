@@ -4,10 +4,24 @@ class Cluster {
 	private $bottomSlots;
 	private $width;
 	private $slotLimit;
+    
     private $tickCounter;
+    private $tickEnable;
+    private $tickTotal;
+
+    private $bgColor;
+    private $concurrentMoves;
+    private $trails;
 
 	public function __construct($width = null, $slotLimit = null) {
-        $this->tickCounter = Config::$defaultTickCounter;
+        $this->concurrentMoves = 1; //Config::$defaultConcurrentMoves;
+        $this->bgColor = Config::$defaultBGColor;
+    
+        $this->tickCounter = 0;
+        $this->tickEnable = true;
+        $this->tickTotal = Config::$defaultTickTotal;
+    
+        $this->trails = false;
 
 		// initialize
         if (is_null($width)) {
@@ -52,6 +66,7 @@ class Cluster {
 
         stream_set_blocking(STDIN, false);
 
+        // START INFINITE LOOP
 		while (1) {
 			$draw = true;
 
@@ -93,21 +108,39 @@ class Cluster {
                     $this->draw();
 
                     break;
+                case 'b':
+                    $this->bgColor = array_rand(Colors::$background);
+                    
+                    $this->draw();
+
+                    break;
+                case 't':
+                    $this->trails = ($this->trails ? false : true);
+
+                    break;
+                case 'T':
+                    $this->tickEnable = ($this->tickEnable ? false : true);
+                
+                    break;
 				default:
-                    //$this->tick();
+                    // do nothing here
 			}
 			
-			$this->tickCounter--;
+			$this->tickCounter++;
 
-            if ($this->tickCounter <= 0) {
-                $this->tickCounter = Config::$defaultTickCounter;
-                $this->tick();
+            if ($this->tickCounter >= $this->tickTotal) {
+                $this->tickCounter = 0;
 
-                if ($draw) {
+                if ($this->tickEnable) {
+                    $this->tick();
+                }
+
+                if ($draw && $this->tickEnable) {
                     $this->draw();
                 }
             }
 		}
+        // END OF INFINITE LOOP
 	}
 
     public function gameOver() {
@@ -115,6 +148,136 @@ class Cluster {
 
         exit;
     }
+
+    public function tick() {
+        // send a tick to all the fuzzies
+        for ($x = 0; $x < count($this->topSlots); $x++) {
+            for ($y = 0; $y < count($this->topSlots[$x]); $y++) {
+                if (!is_null($this->topSlots[$x][$y])) {
+                    $this->topSlots[$x][$y]->tick();
+                }
+            }
+        }
+
+        for ($x = 0; $x < count($this->bottomSlots); $x++) {
+            for ($y = 0; $y < count($this->bottomSlots[$x]); $y++) {
+                if (!is_null($this->bottomSlots[$x][$y])) {
+                    $this->bottomSlots[$x][$y]->tick();
+                }
+            }
+        }
+
+        for ($cm = $this->concurrentMoves; $cm > 0; $cm--) {
+            // select a random fuzzy
+            do {
+                $col = rand(0, $this->width - 1);
+                $top = rand(0, 1);
+                $fuzzy = null;
+
+                if ($top) {
+                    $count = count($this->topSlots[$col]);
+                    
+                    if ($count > 0) {
+                        $stack = rand(0, $count - 1);
+                        $fuzzy = $this->topSlots[$col][$stack];
+                    }        
+                } else {
+                    $count = count($this->bottomSlots[$col]);
+
+                    if ($count > 0) {
+                        $stack = rand(0, $count - 1);
+                        $fuzzy = $this->bottomSlots[$col][$stack];
+                    }
+                }
+            } while (is_null($fuzzy));
+
+            $possibleMoves = array(Fuzzy::$moveNowhere);
+
+            // check for available moves
+            if ($col == 0) {
+                $leftCol = $this->width - 1;
+            } else {
+                $leftCol = $col - 1;
+            }
+
+            if (count($this->topSlots[$leftCol]) < $this->slotLimit) {
+                $possibleMoves[] = Fuzzy::$moveLeft;
+            }
+
+            // right
+            if ($col == $this->width - 1) {
+                $rightCol = 0;
+            } else {
+                $rightCol = $col + 1;
+            }
+                    
+            if (count($this->topSlots[$rightCol]) < $this->slotLimit) {
+                $possibleMoves[] = Fuzzy::$moveRight;
+            }
+
+            // switch from top to bottom
+            if (count($this->bottomSlots[$col]) < $this->slotLimit) {
+                $possibleMoves[] = Fuzzy::$moveSwitch;
+            }
+
+            $move = $fuzzy->getMove($possibleMoves);
+
+            // set a color for the fuzzy if trails are on
+            if ($this->trails) {
+                $color = array_rand(Colors::$foreground);
+                
+                if ($move != Fuzzy::$moveNowhere) {
+                    $fuzzy->setColor($color, rand(2, 10));
+                }
+            }
+
+            switch ($move) {
+                case Fuzzy::$moveLeft:
+                    if ($top) {
+                        if (Config::$debug) echo "Moving top col: $col, stack: $stack to col: $leftCol\n";
+                        $this->topSlots[$leftCol][] = $fuzzy;
+                        $this->topSlots[$col] = Config::removeIndex($this->topSlots[$col], $stack);
+                    } else {
+                        if (Config::$debug) echo "Moving bottom col: $col, stack: $stack to col: $leftCol\n";
+                        $this->bottomSlots[$leftCol][] = $fuzzy;
+                        $this->bottomSlots[$col] = Config::removeIndex($this->bottomSlots[$col], $stack);
+                    }
+
+                    break;
+                case Fuzzy::$moveRight:
+                    if ($top) {
+                        if (Config::$debug) echo "Moving top col: $col, stack: $stack to col: $rightCol\n";
+                        $this->topSlots[$rightCol][] = $fuzzy;
+                        $this->topSlots[$col] = Config::removeIndex($this->topSlots[$col], $stack);
+                    } else {
+                        if (Config::$debug) echo "Moving bottom col: $col, stack: $stack to col: $rightCol\n";
+                        $this->bottomSlots[$rightCol][] = $fuzzy;
+                        $this->bottomSlots[$col] = Config::removeIndex($this->bottomSlots[$col], $stack);
+                    }
+
+                    break;
+                case Fuzzy::$moveSwitch:
+                    if ($top) {
+                        if (Config::$debug) echo "Moving top col: $col, stack: $stack to bottom col: $col\n";
+                        $this->bottomSlots[$col][] = $fuzzy;
+                        $this->topSlots[$col] = Config::removeIndex($this->topSlots[$col], $stack);
+                    } else {
+                        if (Config::$debug) echo "Moving bottom col: $col, stack: $stack to top col: $col\n";
+                        $this->topSlots[$col][] = $fuzzy;
+                        $this->bottomSlots[$col] = Config::removeIndex($this->bottomSlots[$col], $stack);
+                    }
+
+                    break;
+                case Fuzzy::$moveNowhere:
+                    // do nothing
+
+                    break;
+                default:
+                    echo "We have an unhandled getMove response\n";
+                    die();
+            }
+        }
+	}
 
 	public function draw() {
 		$ret = array();
@@ -135,7 +298,7 @@ class Cluster {
 				if ($ts >= ($this->slotLimit - $x)) {
                     $ret[$x] .= $this->topSlots[$y][$this->slotLimit - $x - 1]->draw();
 				} else {
-					$ret[$x] .= " ";
+					$ret[$x] .= Colors::bg_color($this->bgColor, " ");
 				}
 			}
 		}
@@ -161,125 +324,12 @@ class Cluster {
 				if ($bs > ($x - ($this->slotLimit + 1))) {
 					$ret[$x] .= $this->bottomSlots[$y][$x - ($this->slotLimit + 1)]->draw();
 				} else {
-					$ret[$x] .= " ";
+					$ret[$x] .= Colors::bg_color($this->bgColor, " ");
 				}
 			}
 		}
 
 		// draw them
 		Config::draw($ret);
-	}
-
-	public function tick() {
-        // send a tick to all the fuzzies
-        for ($x = 0; $x < count($this->topSlots); $x++) {
-            for ($y = 0; $y < count($this->topSlots[$x]); $y++) {
-                if (!is_null($this->topSlots[$x][$y])) {
-                    $this->topSlots[$x][$y]->tick();
-                }
-            }
-        }
-
-        for ($x = 0; $x < count($this->bottomSlots); $x++) {
-            for ($y = 0; $y < count($this->bottomSlots[$x]); $y++) {
-                if (!is_null($this->bottomSlots[$x][$y])) {
-                    $this->bottomSlots[$x][$y]->tick();
-                }
-            }
-        }
-
-        // select a random fuzzy
-        do {
-            $col = rand(0, $this->width - 1);
-            $top = rand(0, 1);
-            $fuzzy = null;
-
-            if ($top) {
-                $count = count($this->topSlots[$col]);
-                
-                if ($count > 0) {
-                    $stack = rand(0, $count - 1);
-                    $fuzzy = $this->topSlots[$col][$stack];
-                }        
-            } else {
-                $count = count($this->bottomSlots[$col]);
-
-                if ($count > 0) {
-                    $stack = rand(0, $count - 1);
-                    $fuzzy = $this->bottomSlots[$col][$stack];
-                }
-            }
-        } while (is_null($fuzzy));
-
-        $possibleMoves = array(Fuzzy::$moveNowhere);
-
-        // check for available moves
-        if ($col == 0) {
-            $leftCol = $this->width - 1;
-        } else {
-            $leftCol = $col - 1;
-        }
-
-        if (count($this->topSlots[$leftCol]) < $this->slotLimit) {
-            $possibleMoves[] = Fuzzy::$moveLeft;
-        }
-
-        // right
-        if ($col == $this->width - 1) {
-            $rightCol = 0;
-        } else {
-            $rightCol = $col + 1;
-        }
-				
-        if (count($this->topSlots[$rightCol]) < $this->slotLimit) {
-            $possibleMoves[] = Fuzzy::$moveRight;
-        }
-
-        // switch from top to bottom
-        if (count($this->bottomSlots[$col]) < $this->slotLimit) {
-            $possibleMoves[] = Fuzzy::$moveSwitch;
-        }
-
-        $move = $fuzzy->getMove($possibleMoves);
-
-        switch ($move) {
-            case Fuzzy::$moveLeft:
-                if ($top) {
-                    $this->topSlots[$leftCol][] = $fuzzy;
-                    $this->topSlots[$col] = Config::removeIndex($this->topSlots[$col], $stack);
-                } else {
-                    $this->bottomSlots[$leftCol][] = $fuzzy;
-                    $this->bottomSlots[$col] = Config::removeIndex($this->bottomSlots[$col], $stack);
-                }
-
-                break;
-            case Fuzzy::$moveRight:
-                if ($top) {
-                    $this->topSlots[$rightCol][] = $fuzzy;
-                    $this->topSlots[$col] = Config::removeIndex($this->topSlots[$col], $stack);
-                } else {
-                    $this->bottomSlots[$rightCol][] = $fuzzy;
-                    $this->bottomSlots[$col] = Config::removeIndex($this->bottomSlots[$col], $stack);
-                }
-
-                break;
-            case Fuzzy::$moveSwitch:
-                if ($top) {
-                    $this->bottomSlots[$col][] = $fuzzy;
-                    $this->topSlots[$col] = Config::removeIndex($this->topSlots[$col], $stack);
-                } else {
-                    $this->topSlots[$col][] = $fuzzy;
-                    $this->bottomSlots[$col] = Config::removeIndex($this->bottomSlots[$col], $stack);
-                }
-
-                break;
-            case Fuzzy::$moveNowhere:
-                // do nothing
-
-                break;
-            default:
-                echo "We have an unhandled getMove response\n";
-                die();
-        }
 	}
 }

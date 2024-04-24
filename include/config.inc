@@ -3,8 +3,9 @@ class Config {
 	public static $debug = true;
 	public static $defaultWidth = 80;
 	public static $defaultHeight = 5;
-	public static $defaultTickCounter = 4000;
-	
+	public static $defaultTickTotal = 4000;
+	public static $defaultBGColor = 'black';
+    public static $defaultConcurrentMoves = 1;
 	public static $middleLineChar = "-";
 
 	public static function draw($display) {
@@ -59,13 +60,10 @@ class Config {
 	public static function removeIndex($array, $i) {
 		$ret = array();
 
-		//echo "Removing index $i from\n";
-		//print_r($array);
-		//exit;
 		for ($x = 0; $x < count($array); $x++) {
-			if (isset($array[$i])) {
+			if (isset($array[$x])) {
 				if ($x != $i) {
-					$ret[] = $array[$i];
+					$ret[] = $array[$x];
 				}
 			}
 		}
