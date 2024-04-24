@@ -5,17 +5,15 @@ class Cluster {
 	private $width;
 	private $slotLimit;
     private $tickCounter;
-    private $tickAt;
 
 	public function __construct($width = null, $slotLimit = null) {
-        $this->tickCounter = 0;
-        $this->tickAt = Config::$defaultTickAt;
+        $this->tickCounter = Config::$defaultTickCounter;
 
 		// initialize
         if (is_null($width)) {
 		    $this->width = Config::$defaultWidth;
         } else {
-            $this->width =$width;
+            $this->width = $width;
         }
 
         if (is_null($slotLimit)) {
@@ -62,13 +60,47 @@ class Cluster {
 			switch ($c) {
 				case 'q':
 					$this->gameOver();
+
+                    break;
+                case '1':
+                case '2':
+                case '3':
+                case '4':
+                    // pick a random color
+                    $color = array_rand(Colors::$foreground);
+
+                    // send a tick to all the fuzzies
+                    for ($x = 0; $x < count($this->topSlots); $x++) {
+                        for ($y = 0; $y < count($this->topSlots[$x]); $y++) {
+                            if (!is_null($this->topSlots[$x][$y])) {
+                                if (rand(0, $c - 1) === $c - 1) {
+                                    $this->topSlots[$x][$y]->setColor($color, rand(2, 10));
+                                }
+                            }
+                        }
+                    }
+
+                    for ($x = 0; $x < count($this->bottomSlots); $x++) {
+                        for ($y = 0; $y < count($this->bottomSlots[$x]); $y++) {
+                            if (!is_null($this->bottomSlots[$x][$y])) {
+                                if (rand(0, $c - 1) === $c - 1) {
+                                    $this->bottomSlots[$x][$y]->setColor($color, rand(2, 10));
+                                }
+                            }
+                        }
+                    }
+
+                    $this->draw();
+
+                    break;
 				default:
+                    //$this->tick();
 			}
 			
-			$this->tickCounter++;
+			$this->tickCounter--;
 
-            if ($this->tickCounter >= $this->tickAt) {
-                $this->tickCounter = 0;
+            if ($this->tickCounter <= 0) {
+                $this->tickCounter = Config::$defaultTickCounter;
                 $this->tick();
 
                 if ($draw) {
@@ -97,10 +129,11 @@ class Cluster {
 					$ret[$x] = "";
 				}
 
+                // how high is this column
 				$ts = count($this->topSlots[$y]);
 
 				if ($ts >= ($this->slotLimit - $x)) {
-					$ret[$x] .= "*";
+                    $ret[$x] .= $this->topSlots[$y][$this->slotLimit - $x - 1]->draw();
 				} else {
 					$ret[$x] .= " ";
 				}
@@ -126,7 +159,7 @@ class Cluster {
 				$bs = count($this->bottomSlots[$y]);
 
 				if ($bs > ($x - ($this->slotLimit + 1))) {
-					$ret[$x] .= "*";
+					$ret[$x] .= $this->bottomSlots[$y][$x - ($this->slotLimit + 1)]->draw();
 				} else {
 					$ret[$x] .= " ";
 				}
@@ -138,7 +171,24 @@ class Cluster {
 	}
 
 	public function tick() {
-        // MOVE A RANDOM FUZZY
+        // send a tick to all the fuzzies
+        for ($x = 0; $x < count($this->topSlots); $x++) {
+            for ($y = 0; $y < count($this->topSlots[$x]); $y++) {
+                if (!is_null($this->topSlots[$x][$y])) {
+                    $this->topSlots[$x][$y]->tick();
+                }
+            }
+        }
+
+        for ($x = 0; $x < count($this->bottomSlots); $x++) {
+            for ($y = 0; $y < count($this->bottomSlots[$x]); $y++) {
+                if (!is_null($this->bottomSlots[$x][$y])) {
+                    $this->bottomSlots[$x][$y]->tick();
+                }
+            }
+        }
+
+        // select a random fuzzy
         do {
             $col = rand(0, $this->width - 1);
             $top = rand(0, 1);

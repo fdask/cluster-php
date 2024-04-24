@@ -3,7 +3,7 @@
  * taken from https://www.ingeniousmalarkey.com/2011/02/add-color-to-php-echo-in-cli.html
  */
 class Colors {
-    private static $foreground = array(
+    public static $foreground = array(
         'black' => '0;30',
         'dark_gray' => '1;30',
         'red' => '0;31',
@@ -22,7 +22,7 @@ class Colors {
         'bold_gray' => '0;37',
     );
 
-    private static $background = array(
+    public static $background = array(
         'black' => '40',
         'red' => '41',
         'magenta' => '45',

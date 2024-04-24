@@ -6,6 +6,9 @@ class Fuzzy {
 	private $goNowhere;
 	private $goSwitch;
 
+    private $fg_color;
+    private $colorCounter;
+
     public static $moveLeft = "LEFT";
     public static $moveRight = "RIGHT";
     public static $moveNowhere = "NOWHERE";
@@ -14,6 +17,8 @@ class Fuzzy {
 	public function __construct() {
 		$pts = 100;
 
+        $this->colorCounter = 0;
+
 		$this->goLeft = rand(0, $pts);
 		$this->goRight = rand(0, $pts - $this->goLeft);
 		$this->goNowhere = rand(0, $pts - $this->goLeft - $this->goRight);
@@ -21,7 +26,19 @@ class Fuzzy {
 	}
 
     public function tick() {
+        if (!is_null($this->fg_color)) {
+            // if we have a color set
+            $this->colorCounter--;
 
+            if ($this->colorCounter <= 0) {
+                $this->fg_color = null;
+            }
+        }
+    }
+
+    public function setColor($c, $cc) {
+        $this->fg_color = $c;
+        $this->colorCounter = $cc;
     }
 
     public function getMove($possibleMoves) {
@@ -50,5 +67,15 @@ class Fuzzy {
         } while (!in_array($move, $possibleMoves));
 
         return $move;
+    }
+
+    public function draw() {
+        if (!is_null($this->fg_color)) {
+            $ret = Colors::fg_color($this->fg_color, "*");
+        } else {
+            $ret = "*";
+        }
+
+        return $ret;
     }
 }

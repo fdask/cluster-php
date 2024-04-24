@@ -1,9 +1,9 @@
 <?php
 class Config {
-	public static $debug = false;
+	public static $debug = true;
 	public static $defaultWidth = 80;
 	public static $defaultHeight = 5;
-	public static $defaultTickAt = 8000;
+	public static $defaultTickCounter = 4000;
 	
 	public static $middleLineChar = "-";
 
